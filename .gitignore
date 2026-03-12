@@ -1,0 +1,6 @@
+data/*.csv
+data/*.CSV
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+Thumbs.db
