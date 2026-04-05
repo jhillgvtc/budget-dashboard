@@ -1,6 +1,7 @@
 """Load, unify, and filter bank + Chase CSV data."""
 
 import glob
+import os
 import pathlib
 from calendar import monthrange
 from datetime import date
@@ -43,7 +44,9 @@ DAILY_PACE_PCT = {
 def load_bank(path: pathlib.Path | None = None) -> pd.DataFrame:
     """Load and normalize bank checking CSV."""
     if path is None:
-        path = DATA_DIR / "20260209-195186789.CSV"
+        # Set BANK_ACCOUNT_NUM env var or update this default for your account
+        acct = os.environ.get("BANK_ACCOUNT_NUM", "ACCOUNT_NUM")
+        path = DATA_DIR / f"20260209-{acct}.CSV"
     if not path.exists():
         return pd.DataFrame(columns=["date", "description", "amount", "category", "source", "type"])
     df = pd.read_csv(path)
@@ -78,7 +81,9 @@ def _classify_bank_type(payee: str) -> str:
 @st.cache_data
 def load_chase() -> pd.DataFrame:
     """Load all Chase CSVs from data/, deduplicate, return sales only."""
-    files = sorted(glob.glob(str(DATA_DIR / "Chase9539_Activity*.CSV")))
+    # Set CHASE_CARD_SUFFIX env var or update this default for your card
+    chase_suffix = os.environ.get("CHASE_CARD_SUFFIX", "Chase*")
+    files = sorted(glob.glob(str(DATA_DIR / f"{chase_suffix}_Activity*.CSV")))
     if not files:
         return pd.DataFrame(columns=["date", "description", "amount", "category", "source", "type"])
 
@@ -108,7 +113,8 @@ def load_chase() -> pd.DataFrame:
 @st.cache_data
 def load_chase_interest() -> pd.DataFrame:
     """Load interest/fee charges from all Chase CSVs for payoff analysis."""
-    files = sorted(glob.glob(str(DATA_DIR / "Chase9539_Activity*.CSV")))
+    chase_suffix = os.environ.get("CHASE_CARD_SUFFIX", "Chase*")
+    files = sorted(glob.glob(str(DATA_DIR / f"{chase_suffix}_Activity*.CSV")))
     if not files:
         return pd.DataFrame(columns=["date", "description", "amount"])
 

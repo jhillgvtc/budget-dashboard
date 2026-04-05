@@ -1,5 +1,6 @@
 """Bank transaction categorizer using regex pattern matching on payee field."""
 
+import os
 import re
 
 # Ordered list of (pattern, category) -- first match wins
@@ -17,7 +18,8 @@ CATEGORY_RULES = [
     (r"CHASE CREDIT CRD", "Transfer"),
     (r"ONLINE BILL PAYMENT Chase", "Transfer"),
     (r"CAPITAL ONE.*CRCARDPMT", "Transfer"),
-    (r"Z06592715", "Transfer"),
+    # Set BANK_TRANSFER_REF env var if your transfer reference differs
+    (os.environ.get("BANK_TRANSFER_REF", r"TRANSFER_REF"), "Transfer"),
 
     # Investing
     (r"FID BKG SVC", "Investing"),
