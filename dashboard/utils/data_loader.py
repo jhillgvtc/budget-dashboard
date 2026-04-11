@@ -179,6 +179,9 @@ def load_all() -> pd.DataFrame:
     sheet = load_budget_sheet()
     # Chase CSVs first (more complete history), then budget sheet fills in recent data
     combined = pd.concat([bank, chase, sheet], ignore_index=True)
+    # Empty-frame branches in load_bank/load_chase produce object-dtype `date`,
+    # which upcasts the whole column in concat and breaks downstream .dt access.
+    combined["date"] = pd.to_datetime(combined["date"], errors="coerce")
     # Cross-source dedup: Chase CSVs and budget sheet track the same card
     combined = combined.drop_duplicates(
         subset=["date", "description", "amount"],
