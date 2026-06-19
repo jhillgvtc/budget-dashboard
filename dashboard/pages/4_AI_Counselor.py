@@ -7,16 +7,29 @@ from utils.data_loader import load_expenses, filter_by_dates
 st.set_page_config(page_title="AI Counselor", page_icon="🤖", layout="wide")
 st.title("AI Financial Counselor")
 
-# -- Check for API key --
-api_key = os.environ.get("ANTHROPIC_API_KEY")
+# -- Resolve API key from env (local run) or Streamlit secrets (cloud) --
+def _get_api_key() -> str | None:
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if key:
+        return key
+    # st.secrets raises if no secrets file exists at all (e.g. local run) -- guard it.
+    try:
+        return st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        return None
+
+
+api_key = _get_api_key()
 if not api_key:
     st.error(
         "**ANTHROPIC_API_KEY not found.**\n\n"
-        "Set it before running the app:\n"
-        "```bash\n"
-        "# Windows PowerShell\n"
-        '$env:ANTHROPIC_API_KEY = "sk-ant-..."\n\n'
-        "# Or permanently via System Environment Variables\n"
+        "**On Streamlit Cloud:** open *Manage app → Settings → Secrets* and add:\n"
+        "```toml\n"
+        'ANTHROPIC_API_KEY = "sk-ant-..."\n'
+        "```\n"
+        "**Running locally:** set it first, e.g. in PowerShell:\n"
+        "```powershell\n"
+        '$env:ANTHROPIC_API_KEY = "sk-ant-..."\n'
         "```"
     )
     st.stop()
