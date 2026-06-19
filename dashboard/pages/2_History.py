@@ -18,6 +18,10 @@ if isinstance(date_range, tuple) and len(date_range) == 2:
 else:
     df = expenses.copy()
 
+# Ensure the analysis column is numeric so groupby/nlargest can't crash on an
+# upstream object dtype (e.g. amount upcast during multi-source concat).
+df["amount_abs"] = pd.to_numeric(df["amount_abs"], errors="coerce")
+
 if len(df) == 0:
     st.warning("No transactions in selected date range.")
     st.stop()

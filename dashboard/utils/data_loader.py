@@ -10,7 +10,10 @@ import pandas as pd
 import streamlit as st
 from utils.categorizer import categorize_bank_transaction
 
-DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "data"
+DATA_DIR = pathlib.Path(
+    os.environ.get("DASHBOARD_DATA_DIR")
+    or (pathlib.Path(__file__).resolve().parent.parent.parent / "data")
+)
 
 # Google Sheets budget tracker (Atlas-maintained, published CSV)
 BUDGET_SHEET_URL = (
@@ -177,14 +180,20 @@ def load_all() -> pd.DataFrame:
     bank = load_bank()
     chase = load_chase()
     sheet = load_budget_sheet()
+    # Drop empty sources before concat. Newer pandas no longer excludes empty/all-NA
+    # frames when inferring result dtypes, so concatenating an empty (object-dtype)
+    # bank/chase frame upcasts the numeric `amount` column to object -- which silently
+    # survives .abs()/.sum() but later crashes nlargest() ("dtype object") on the
+    # Trends page. Excluding empties keeps dtypes clean at the source.
+    frames = [f for f in (bank, chase, sheet) if not f.empty]
+    if not frames:
+        return pd.DataFrame(
+            columns=["date", "description", "amount", "category", "source", "type"]
+        )
     # Chase CSVs first (more complete history), then budget sheet fills in recent data
-    combined = pd.concat([bank, chase, sheet], ignore_index=True)
-    # Empty-frame branches in load_bank/load_chase produce object-dtype `date`,
-    # which upcasts the whole column in concat and breaks downstream .dt access.
+    combined = pd.concat(frames, ignore_index=True)
+    # Defensive coercion regardless of source dtypes.
     combined["date"] = pd.to_datetime(combined["date"], errors="coerce")
-    # Same exposure for `amount`: an object-dtype source column (empty-frame branch
-    # or un-coerced Chase Amount) upcasts the whole column in concat. Object amount
-    # silently survives .abs()/.sum() but breaks nlargest() and other numeric ops.
     combined["amount"] = pd.to_numeric(combined["amount"], errors="coerce")
     # Cross-source dedup: Chase CSVs and budget sheet track the same card
     combined = combined.drop_duplicates(
