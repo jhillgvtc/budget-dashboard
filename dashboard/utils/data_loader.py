@@ -182,6 +182,10 @@ def load_all() -> pd.DataFrame:
     # Empty-frame branches in load_bank/load_chase produce object-dtype `date`,
     # which upcasts the whole column in concat and breaks downstream .dt access.
     combined["date"] = pd.to_datetime(combined["date"], errors="coerce")
+    # Same exposure for `amount`: an object-dtype source column (empty-frame branch
+    # or un-coerced Chase Amount) upcasts the whole column in concat. Object amount
+    # silently survives .abs()/.sum() but breaks nlargest() and other numeric ops.
+    combined["amount"] = pd.to_numeric(combined["amount"], errors="coerce")
     # Cross-source dedup: Chase CSVs and budget sheet track the same card
     combined = combined.drop_duplicates(
         subset=["date", "description", "amount"],
@@ -196,8 +200,9 @@ def load_expenses() -> pd.DataFrame:
     """Load only expense transactions (filtered from both sources)."""
     df = load_all()
     expenses = df[~df["type"].isin(NON_EXPENSE_TYPES)].copy()
-    # Expenses are negative amounts -- make them positive for analysis
-    expenses["amount_abs"] = expenses["amount"].abs()
+    # Expenses are negative amounts -- make them positive for analysis.
+    # Coerce to numeric first so amount_abs is float, not object (nlargest etc.).
+    expenses["amount_abs"] = pd.to_numeric(expenses["amount"], errors="coerce").abs()
     return expenses.reset_index(drop=True)
 
 
